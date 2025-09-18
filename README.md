@@ -66,82 +66,63 @@ Below are the solutions for each question in this project:
 
 ### Q1: List All Distinct Users and Their Stats
 ```sql
-SELECT 
-    username,
-    COUNT(id) AS total_submissions,
-    SUM(points) AS points_earned
+SELECT
+	username,
+	COUNT(submitted_at) AS total_submssion,
+	SUM(points) AS total_points
 FROM user_submissions
-GROUP BY username
-ORDER BY total_submissions DESC;
+GROUP BY 1
+ORDER BY 2,3;
 ```
 
 ### Q2: Calculate the Daily Average Points for Each User
 ```sql
-SELECT 
-    TO_CHAR(submitted_at, 'DD-MM') AS day,
-    username,
-    AVG(points) AS daily_avg_points
+SELECT
+	EXTRACT(DAY FROM submitted_at) AS days,
+	username,
+	AVG(points) AS avg_point
 FROM user_submissions
-GROUP BY 1, 2
-ORDER BY username;
+GROUP BY 1,2;
 ```
 
 ### Q3: Find the Top 3 Users with the Most Correct Submissions for Each Day
 ```sql
-WITH daily_submissions AS (
-    SELECT 
-        TO_CHAR(submitted_at, 'DD-MM') AS daily,
-        username,
-        SUM(CASE WHEN points > 0 THEN 1 ELSE 0 END) AS correct_submissions
-    FROM user_submissions
-    GROUP BY 1, 2
-),
-users_rank AS (
-    SELECT 
-        daily,
-        username,
-        correct_submissions,
-        DENSE_RANK() OVER(PARTITION BY daily ORDER BY correct_submissions DESC) AS rank
-    FROM daily_submissions
-)
-SELECT 
-    daily,
-    username,
-    correct_submissions
-FROM users_rank
-WHERE rank <= 3;
+SELECT
+	*
+FROM
+(SELECT
+	EXTRACT(DAY FROM submitted_at) AS days,
+	username,
+	COUNT(points) AS points,
+	RANK() OVER(PARTITION BY EXTRACT(DAY FROM submitted_at) ORDER BY COUNT(points) DESC) AS ranking
+FROM user_submissions
+WHERE points>0
+GROUP BY 1,2)
+WHERE ranking BETWEEN 1 AND 3;
 ```
 
 ### Q4: Find the Top 5 Users with the Highest Number of Incorrect Submissions
 ```sql
-SELECT 
-    username,
-    SUM(CASE WHEN points < 0 THEN 1 ELSE 0 END) AS incorrect_submissions,
-    SUM(CASE WHEN points > 0 THEN 1 ELSE 0 END) AS correct_submissions,
-    SUM(CASE WHEN points < 0 THEN points ELSE 0 END) AS incorrect_submissions_points,
-    SUM(CASE WHEN points > 0 THEN points ELSE 0 END) AS correct_submissions_points_earned,
-    SUM(points) AS points_earned
+SELECT
+	username,
+	COUNT(points) AS no_of_attempt
 FROM user_submissions
+WHERE points<0
 GROUP BY 1
-ORDER BY incorrect_submissions DESC;
+ORDER BY no_of_attempt DESC
+LIMIT 5;
 ```
 
 ### Q5: Find the Top 10 Performers for Each Week
 ```sql
-SELECT *  
-FROM (
-    SELECT 
-        EXTRACT(WEEK FROM submitted_at) AS week_no,
-        username,
-        SUM(points) AS total_points_earned,
-        DENSE_RANK() OVER(PARTITION BY EXTRACT(WEEK FROM submitted_at) ORDER BY SUM(points) DESC) AS rank
-    FROM user_submissions
-    GROUP BY 1, 2
-    ORDER BY week_no, total_points_earned DESC
-)
-WHERE rank <= 10;
+SELECT
+	*
+FROM(SELECT
+	EXTRACT(WEEK FROM submitted_at) AS weeks,
+	username,
+	SUM(points) AS total_points,
+	RANK() OVER(PARTITION BY EXTRACT(WEEK FROM submitted_at) ORDER BY SUM(points) DESC) AS ranking
+FROM user_submissions
+GROUP BY 1,2)
+WHERE ranking BETWEEN 1 AND 10;
 ```
-
-## Conclusion
-
-This project provides an excellent opportunity for beginners to apply their SQL knowledge to solve practical data problems. By working through these SQL queries, you'll gain hands-on experience with data aggregation, ranking, date manipulation, and conditional logic.
